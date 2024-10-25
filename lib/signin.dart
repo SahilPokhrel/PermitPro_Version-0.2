@@ -1,91 +1,125 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'profilepage.dart';
+import 'stu_dashboard.dart';
+import 'admin_dashboard.dart';
 
 class Signin extends StatefulWidget {
   const Signin({super.key});
+
   @override
   State<Signin> createState() => _SigninState();
 }
 
 class _SigninState extends State<Signin> {
-  signin() async {
-    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-    final GoogleSignInAuthentication? googleAuth =
-        await googleUser?.authentication;
+  Future<void> signin() async {
+    try {
+      // Start the Google sign-in process
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        // Sign-in aborted by user
+        return;
+      }
 
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth?.accessToken,
-      idToken: googleAuth?.idToken,
-    );
+      // Retrieve Google sign-in authentication
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
-    await FirebaseAuth.instance.signInWithCredential(credential);
+      // Create a credential for Firebase Authentication
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the Google credential
+      final UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        final String? userEmail = user.email;
+
+        if (userEmail != null) {
+          // Check if the user's profile exists in "students" or "admins" collections
+          final DocumentSnapshot studentDoc =
+              await _firestore.collection('students').doc(userEmail).get();
+          final DocumentSnapshot adminDoc =
+              await _firestore.collection('admins').doc(userEmail).get();
+
+          // Redirect based on the existing profile or direct to ProfilePage for new users
+          if (studentDoc.exists) {
+            Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (context) => StudentDashboard()));
+          } else if (adminDoc.exists) {
+            Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (context) => AdminDashboard()));
+          } else {
+            Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => ProfilePage(email: userEmail)));
+          }
+        }
+      }
+    } catch (e) {
+      print("Error in Google Sign-In: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Sign-in failed. Please try again.")),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Image in the middle section
-          Center(
-            child: Image.network(
-              'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_GA3B268_8jZwSarPR6Lb_QvsssLnrI5lzg&s',
-              width: 150,
-              height: 150,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset('lib/assets/logo.png',
+                height: 100), // Add your image asset
+            SizedBox(height: 20),
+            Text(
+              'Welcome!',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-          ),
-          const SizedBox(height: 20), // Space between image and text
-
-          // Welcome text
-          const Text(
-            'Welcome to PermitPro : LMS\n(Leave Management System)',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
+            SizedBox(height: 10),
+            Text(
+              'Continue with Google to access your dashboard',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
-          ),
-          const Spacer(), // Space pushes content to the top
-
-          Center(
-            child: Image.network(
-              'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQLAPkTRdWpmzO7p0N75Jus43i49W7LQ-IVrQ&s',
-              width: 200,
-              height: 450,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Continue with Google Button
-          Padding(
-            padding: const EdgeInsets.only(bottom: 40.0),
-            child: ElevatedButton(
+            SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: signin,
               style: ElevatedButton.styleFrom(
                 foregroundColor: Colors.black,
-                backgroundColor: Colors.white, // Black text
-                side: const BorderSide(color: Colors.black), // Black border
-                minimumSize: const Size(300, 50), // Width and height of button
+                backgroundColor: Colors.white,
+                side: BorderSide(color: Colors.grey),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10), // Rounded corners
-                ),
+                    borderRadius: BorderRadius.circular(20)),
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
-              onPressed: (() => signin()),
-              child: const Text(
-                'Continue with Google',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset('lib/assets/images.png',
+                      height: 24), // Add Google icon asset
+                  SizedBox(width: 12),
+                  Text(
+                    'Continue with Google',
+                    style: TextStyle(fontSize: 16, color: Colors.black),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

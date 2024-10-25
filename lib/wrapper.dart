@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:permit_pro/homepage.dart';
+import 'package:permit_pro/profilepage.dart';
 import 'package:permit_pro/signin.dart';
 
 class Wrapper extends StatefulWidget {
@@ -18,9 +18,11 @@ class _WrapperState extends State<Wrapper> {
           stream: FirebaseAuth.instance.authStateChanges(),
           builder: (context, snapshot) {
             if (snapshot.hasData) {
-              return Homepage();
+              return ProfilePage(
+                email: '',
+              );
             } else {
-              return Signin();
+              return const Signin();
             }
           }),
     );
