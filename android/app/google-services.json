@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1090768454175",
+    "project_id": "permit-pro-bdfc0",
+    "storage_bucket": "permit-pro-bdfc0.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1090768454175:android:b957b7791c65a9b04d0b2a",
+        "android_client_info": {
+          "package_name": "com.example.permit_pro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1090768454175-qqqfaf3234k988nu8a2k0356cfgbr6ea.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.permit_pro",
+            "certificate_hash": "41652ee586928b3a725fbb07600bbf45c84eca23"
+          }
+        },
+        {
+          "client_id": "1090768454175-cq8emmssqmok5cs74ki19o4obpsf4o6o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB81m9LAN9jjv_My-JCktocyXT0vGu6LBs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1090768454175-cq8emmssqmok5cs74ki19o4obpsf4o6o.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
