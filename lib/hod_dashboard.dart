@@ -3,7 +3,7 @@ import 'signin.dart'; // Adjust the import path
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-class AdminDashboard extends StatelessWidget {
+class HODDashboard extends StatelessWidget {
   void _signOut(BuildContext context) async {
     await GoogleSignIn().signOut();
     await FirebaseAuth.instance.signOut();
@@ -16,10 +16,10 @@ class AdminDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Admin Dashboard'),
+        title: Text('HOD Dashboard'),
       ),
       body: Center(
-        child: Text('Welcome to the Admin Dashboard!'),
+        child: Text('Welcome to the HOD Dashboard!'),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _signOut(context),

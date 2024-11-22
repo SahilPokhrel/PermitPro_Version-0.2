@@ -4,7 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'profilepage.dart';
 import 'stu_dashboard.dart';
-import 'admin_dashboard.dart';
+import 'hod_dashboard.dart';
+import 'ct_dashboard.dart'; // Import Class-Teacher Dashboard
 
 class Signin extends StatefulWidget {
   const Signin({super.key});
@@ -16,12 +17,13 @@ class Signin extends StatefulWidget {
 class _SigninState extends State<Signin> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Function to handle Google Sign-In
   Future<void> signin() async {
     try {
       // Start the Google sign-in process
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
-        // Sign-in aborted by user
+        // Sign-in aborted by the user
         return;
       }
 
@@ -44,19 +46,24 @@ class _SigninState extends State<Signin> {
         final String? userEmail = user.email;
 
         if (userEmail != null) {
-          // Check if the user's profile exists in "students" or "admins" collections
+          // Check if the user's profile exists in Firestore collections
           final DocumentSnapshot studentDoc =
               await _firestore.collection('students').doc(userEmail).get();
-          final DocumentSnapshot adminDoc =
-              await _firestore.collection('admins').doc(userEmail).get();
+          final DocumentSnapshot hodDoc =
+              await _firestore.collection('hods').doc(userEmail).get(); // Updated
+          final DocumentSnapshot classTeacherDoc =
+              await _firestore.collection('class_teachers').doc(userEmail).get();
 
-          // Redirect based on the existing profile or direct to ProfilePage for new users
+          // Redirect based on the existing profile or navigate to ProfilePage
           if (studentDoc.exists) {
             Navigator.pushReplacement(context,
                 MaterialPageRoute(builder: (context) => StudentDashboard()));
-          } else if (adminDoc.exists) {
+          } else if (hodDoc.exists) {
             Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (context) => AdminDashboard()));
+                MaterialPageRoute(builder: (context) => HODDashboard()));
+          } else if (classTeacherDoc.exists) {
+            Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (context) => ClassTeacherDashboard()));
           } else {
             Navigator.pushReplacement(
                 context,
@@ -71,6 +78,49 @@ class _SigninState extends State<Signin> {
         SnackBar(content: Text("Sign-in failed. Please try again.")),
       );
     }
+  }
+
+  // Function to check user's current authentication state on app reopen
+  Future<void> checkAuthState() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      final String? userEmail = user.email;
+
+      if (userEmail != null) {
+        // Check if the user's profile exists in Firestore collections
+        final DocumentSnapshot studentDoc =
+            await _firestore.collection('students').doc(userEmail).get();
+        final DocumentSnapshot hodDoc =
+            await _firestore.collection('hods').doc(userEmail).get(); // Updated
+        final DocumentSnapshot classTeacherDoc =
+            await _firestore.collection('class_teachers').doc(userEmail).get();
+
+        // Redirect based on the existing profile
+        if (studentDoc.exists) {
+          Navigator.pushReplacement(context,
+              MaterialPageRoute(builder: (context) => StudentDashboard()));
+        } else if (hodDoc.exists) {
+          Navigator.pushReplacement(context,
+              MaterialPageRoute(builder: (context) => HODDashboard()));
+        } else if (classTeacherDoc.exists) {
+          Navigator.pushReplacement(context,
+              MaterialPageRoute(builder: (context) => ClassTeacherDashboard()));
+        } else {
+          Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => ProfilePage(email: userEmail)));
+        }
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Check authentication state on app launch
+    checkAuthState();
   }
 
   @override

@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'signin.dart';
 import 'stu_dashboard.dart';
-import 'admin_dashboard.dart';
+import 'hod_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,8 +38,8 @@ class LandingPage extends StatelessWidget {
           final userRole = snapshot.data;
           if (userRole == 'Student') {
             return StudentDashboard();
-          } else if (userRole == 'Admin') {
-            return AdminDashboard();
+          } else if (userRole == 'HOD') {
+            return HODDashboard();
           } else {
             return const Signin();
           }
@@ -61,15 +61,15 @@ class LandingPage extends StatelessWidget {
           .collection('students')
           .doc(userEmail)
           .get();
-      final adminDoc = await FirebaseFirestore.instance
-          .collection('admins')
+      final HODDoc = await FirebaseFirestore.instance
+          .collection('HOD')
           .doc(userEmail)
           .get();
 
       if (studentDoc.exists) {
         return 'Student';
-      } else if (adminDoc.exists) {
-        return 'Admin';
+      } else if (HODDoc.exists) {
+        return 'HOD';
       }
     }
     return null; // User is not logged in or does not have a profile

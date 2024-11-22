@@ -27,3 +27,4 @@ flutter:
   assets:
     - lib/assets/images.png
     - lib/assets/logo.png
+    - assets/profile_placeholder.jpg
