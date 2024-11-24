@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
@@ -19,12 +18,12 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
-  final picker = ImagePicker();
 
   String _selectedRole = 'Student'; // Default selected role
-  XFile? _profileImage;
-  static const String hodCode = "123456"; // Updated from "adminCode"
+  String _selectedSemester = "Semester 1"; // Default semester value
+
+  static const String hodCode = "123456"; // Correct HOD Code
+  static const String classTeacherCode = "654321"; // Correct Class-Teacher Code
 
   // Text controllers for form fields
   final TextEditingController _emailController = TextEditingController();
@@ -34,20 +33,13 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _usnController = TextEditingController();
   final TextEditingController _staffIdController = TextEditingController();
-  final TextEditingController _hodCodeController = TextEditingController(); // Renamed field for HOD
+  final TextEditingController _hodCodeController = TextEditingController();
   final TextEditingController _classTeacherCodeController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _emailController.text = widget.email;
-  }
-
-  void _pickImage() async {
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    setState(() {
-      _profileImage = pickedFile;
-    });
   }
 
   Future<void> _navigateToDashboard() async {
@@ -63,20 +55,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<String?> _uploadProfileImage() async {
-    if (_profileImage == null) return null;
-
-    try {
-      final filePath = 'profile_images/${widget.email}.jpg';
-      final fileRef = _storage.ref().child(filePath);
-      await fileRef.putFile(File(_profileImage!.path));
-      return await fileRef.getDownloadURL();
-    } catch (e) {
-      print("Error uploading profile image: $e");
-      return null;
-    }
-  }
-
   void _saveProfile() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedRole == "HOD" && _hodCodeController.text != hodCode) {
@@ -85,17 +63,24 @@ class _ProfilePageState extends State<ProfilePage> {
         return;
       }
 
+      if (_selectedRole == "Class-Teacher" &&
+          _classTeacherCodeController.text != classTeacherCode) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:
+                Text("Invalid Class-Teacher Code. Please enter the correct code.")));
+        return;
+      }
+
       try {
-        // Base profile data for all roles
+        // Initialize the profileData map with common fields
         final profileData = {
           "email": _emailController.text,
           "fullName": _nameController.text,
           "phone": _phoneController.text,
           "role": _selectedRole,
-          "profileImage": await _uploadProfileImage(), // Add image URL if available
         };
 
-        // Additional data based on selected role
+        // Add role-specific data to the profileData map
         if (_selectedRole == "Student") {
           profileData.addAll({
             "parentPhone": _parentPhoneController.text,
@@ -103,7 +88,7 @@ class _ProfilePageState extends State<ProfilePage> {
             "usn": _usnController.text,
             "college": "T John Group of Institutions",
             "course": "BE Computer Science & Eng",
-            "semester": "Semester 1"
+            "semester": _selectedSemester, // Include the semester value
           });
         } else if (_selectedRole == "HOD") {
           profileData.addAll({
@@ -117,19 +102,23 @@ class _ProfilePageState extends State<ProfilePage> {
             "staffId": _staffIdController.text,
             "classTeacherCode": _classTeacherCodeController.text,
             "college": "T John Group of Institutions",
-            "course": "BE Computer Science & Eng"
+            "course": "BE Computer Science & Eng",
+            "semester": _selectedSemester, // Include the semester value
           });
         }
 
-        // Save profile data to Firestore
+        // Determine the collection based on the selected role
         final collectionName = _selectedRole == "Student"
             ? "students"
             : (_selectedRole == "HOD" ? "hods" : "class_teachers");
+
+        // Save the profile data to Firestore
         await _firestore
             .collection(collectionName)
             .doc(_emailController.text)
             .set(profileData);
 
+        // Show success message and navigate to the dashboard
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Profile created successfully!")));
         _navigateToDashboard();
@@ -149,36 +138,6 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: EdgeInsets.all(16.0),
         child: Column(
           children: [
-            SizedBox(height: 16.0),
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundImage: _profileImage == null
-                      ? AssetImage('assets/default_profile.jpg') as ImageProvider
-                      : FileImage(File(_profileImage!.path)),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: InkWell(
-                    onTap: _pickImage,
-                    child: Container(
-                      padding: EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.camera_alt,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
             SizedBox(height: 16.0),
             _buildTextField("Email", _emailController, isEmail: true),
             DropdownButton<String>(
@@ -214,8 +173,9 @@ class _ProfilePageState extends State<ProfilePage> {
         children: <Widget>[
           _buildTextField("Full Name", _nameController),
           _buildPhoneField("Phone No.", _phoneController),
-          _buildPhoneField("Parent Mob No.", _parentPhoneController),
+          _buildPhoneField("Parent's Phone No.", _parentPhoneController),
           _buildTextField("Address", _addressController),
+          _buildTextField("USN", _usnController),
           _buildDropdown("College", ["T John Group of Institutions"], (val) {}),
           _buildDropdown(
               "Course",
@@ -241,8 +201,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 "Semester 7",
                 "Semester 8"
               ],
-              (val) {}),
-          _buildTextField("USN", _usnController),
+              (val) {
+                setState(() {
+                  _selectedSemester = val!;
+                });
+              }),
           SizedBox(height: 20.0),
           ElevatedButton(onPressed: _saveProfile, child: Text('Create Profile')),
         ],
@@ -258,6 +221,8 @@ class _ProfilePageState extends State<ProfilePage> {
         children: <Widget>[
           _buildTextField("Full Name", _nameController),
           _buildPhoneField("Phone No.", _phoneController),
+          _buildTextField("Staff ID", _staffIdController),
+          _buildNumericField("HOD Code", _hodCodeController),
           _buildDropdown("College", ["T John Group of Institutions"], (val) {}),
           _buildDropdown(
               "Course",
@@ -271,8 +236,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 "BE IoT"
               ],
               (val) {}),
-          _buildTextField("Staff ID", _staffIdController),
-          _buildTextField("HOD Code", _hodCodeController, isMandatory: true),
           SizedBox(height: 20.0),
           ElevatedButton(onPressed: _saveProfile, child: Text('Create Profile')),
         ],
@@ -288,6 +251,8 @@ class _ProfilePageState extends State<ProfilePage> {
         children: <Widget>[
           _buildTextField("Full Name", _nameController),
           _buildPhoneField("Phone No.", _phoneController),
+          _buildTextField("Staff ID", _staffIdController),
+          _buildNumericField("Class Teacher Code", _classTeacherCodeController),
           _buildDropdown("College", ["T John Group of Institutions"], (val) {}),
           _buildDropdown(
               "Course",
@@ -301,8 +266,23 @@ class _ProfilePageState extends State<ProfilePage> {
                 "BE IoT"
               ],
               (val) {}),
-          _buildTextField("Staff ID", _staffIdController),
-          _buildTextField("Class Teacher Code", _classTeacherCodeController, isMandatory: true),
+          _buildDropdown(
+              "Semester",
+              [
+                "Semester 1",
+                "Semester 2",
+                "Semester 3",
+                "Semester 4",
+                "Semester 5",
+                "Semester 6",
+                "Semester 7",
+                "Semester 8"
+              ],
+              (val) {
+                setState(() {
+                  _selectedSemester = val!;
+                });
+              }),
           SizedBox(height: 20.0),
           ElevatedButton(onPressed: _saveProfile, child: Text('Create Profile')),
         ],
@@ -311,16 +291,15 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildTextField(String label, TextEditingController controller,
-      {bool isEmail = false, bool isMandatory = true}) {
+      {bool isEmail = false}) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(labelText: label),
       keyboardType: isEmail ? TextInputType.emailAddress : TextInputType.text,
-      validator: isMandatory
-          ? (value) => value == null || value.isEmpty
-              ? 'Please enter $label'
-              : null
-          : null,
+      validator: (value) {
+        if (value!.isEmpty) return "$label is required";
+        return null;
+      },
     );
   }
 
@@ -330,21 +309,31 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: InputDecoration(labelText: label),
       keyboardType: TextInputType.phone,
       validator: (value) {
-        if (value == null || value.isEmpty) return 'Please enter $label';
-        if (!RegExp(r'^[6-9]\d{9}$').hasMatch(value)) {
-          return 'Invalid phone number';
-        }
+        if (value!.isEmpty) return "$label is required";
+        if (value.length != 10) return "$label should be 10 digits";
+        return null;
+      },
+    );
+  }
+
+  Widget _buildNumericField(String label, TextEditingController controller) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(labelText: label),
+      keyboardType: TextInputType.number,
+      validator: (value) {
+        if (value!.isEmpty) return "$label is required";
         return null;
       },
     );
   }
 
   Widget _buildDropdown(
-      String label, List<String> items, void Function(String?) onChanged) {
+      String label, List<String> items, ValueChanged<String?> onChanged) {
     return DropdownButtonFormField<String>(
       decoration: InputDecoration(labelText: label),
-      items: items.map<DropdownMenuItem<String>>((String value) {
-        return DropdownMenuItem<String>(value: value, child: Text(value));
+      items: items.map((item) {
+        return DropdownMenuItem<String>(value: item, child: Text(item));
       }).toList(),
       onChanged: onChanged,
     );
