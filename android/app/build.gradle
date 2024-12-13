@@ -1,14 +1,13 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
     id 'com.google.gms.google-services'
 }
 
 android {
     namespace = "com.example.permit_pro"
-    compileSdkVersion 34 // Use an explicit compileSdkVersion
+    compileSdkVersion 34 // Ensure compatibility with the latest SDK version
 
     ndkVersion = flutter.ndkVersion
 
@@ -23,14 +22,11 @@ android {
 
     defaultConfig {
         applicationId = "com.example.permit_pro"
-        minSdkVersion 23 // Set minSdkVersion to 23 (as required by firebase_auth)
-        targetSdkVersion 33 // Use an explicit target SDK version
+        minSdkVersion 23 // Ensure compatibility with firebase_auth
+        targetSdkVersion 33 // Keep targetSdkVersion at 33 for compatibility
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        multiDexEnabled true // Enable MultiDex support
-
-        // This enables support for multidex (needed when there are many methods)
-        multiDexEnabled true
+        multiDexEnabled true // Enable MultiDex support for large apps
     }
 
     buildTypes {
@@ -45,8 +41,9 @@ flutter {
 }
 
 dependencies {
-    implementation platform('com.google.firebase:firebase-bom:33.5.0') // Firebase BoM for better dependency management
-    implementation 'androidx.multidex:multidex:2.0.1' // Ensure MultiDex is enabled
+    implementation platform('com.google.firebase:firebase-bom:33.5.0') // Ensure correct Firebase versioning
+    implementation 'androidx.multidex:multidex:2.0.1' // Required for large apps
+    // Add any additional dependencies here
 }
 
-apply plugin: 'com.google.gms.google-services'
+apply plugin: 'com.google.gms.google-services' // Ensure Firebase Google services plugin is applied

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart'; // For formatting the date/time
 
 class CTRequestPage extends StatefulWidget {
   @override
@@ -24,40 +23,95 @@ class _CTRequestPageState extends State<CTRequestPage> {
   Future<void> _fetchClassTeacherDetails() async {
     try {
       final User? user = _auth.currentUser;
-      if (user != null) {
-        final userData = await _firestore.collection('class_teachers').doc(user.email).get();
-        if (userData.exists) {
-          setState(() {
-            course = userData['course'];
-            semester = userData['semester'];
-          });
-        } else {
-          print("No data found for the class teacher in Firestore.");
-        }
-      } else {
+      if (user == null) {
         print("User is not logged in.");
+        return;
+      }
+
+      final userData = await _firestore.collection('class_teachers').doc(user.email).get();
+      if (userData.exists) {
+        setState(() {
+          course = userData['course'];
+          semester = userData['semester'];
+        });
+      } else {
+        print("No data found for the class teacher in Firestore.");
       }
     } catch (e) {
       print("Error fetching class teacher details: $e");
     }
   }
 
-  // Update request status (approve or reject)
-  Future<void> _updateRequestStatus(String requestId, String status) async {
+  // Log the action in the classTeacherHistory collection
+  Future<void> _logActionInHistory(String requestId, String status, String teacherEmail) async {
     try {
-      await _firestore.collection('requests').doc(requestId).update({
-        'status': status,
-        'approved_by_class_teacher': status == 'approved',
-      });
-
-      if (status == 'approved') {
-        // Forward to HOD
-        await _firestore.collection('requests').doc(requestId).update({
-          'approved_by_hod': false, // HOD approval pending
+      final requestDoc = await _firestore.collection('requests').doc(requestId).get();
+      if (requestDoc.exists) {
+        final requestData = requestDoc.data() ?? {};
+        await _firestore.collection('classTeacherHistory').add({
+          'request_id': requestId,
+          'studentName': requestData['studentName'] ?? 'Unknown',
+          'leaveType': requestData['leaveType'] ?? 'Unknown',
+          'status': status == 'approved' ? 'Approved by Class Teacher' : 'Rejected by Class Teacher',
+          'approvedBy': teacherEmail,
+          'timestamp': FieldValue.serverTimestamp(), // Record the time of action
         });
       }
+    } catch (e) {
+      print("Error logging action in history: $e");
+    }
+  }
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Request $status!")));
+  // Update request status, log action in history, and forward to HOD
+  Future<void> _updateRequestStatus(String requestId, String status) async {
+    try {
+      final User? user = _auth.currentUser;
+      if (user == null || user.email == null) {
+        print("User not logged in or email is null");
+        return;
+      }
+
+      // Log the action in classTeacherHistory
+      await _logActionInHistory(requestId, status, user.email!);  // Add ! to assert email is not null
+
+      if (status == 'rejected') {
+        // Directly reject the request and update the status
+        await _firestore.collection('requests').doc(requestId).update({
+          'status': 'Rejected by Class Teacher',
+          'approved_by_class_teacher': false, // Mark as rejected by class teacher
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Request rejected")),
+        );
+      } else if (status == 'approved') {
+        // If approved, update the status and forward it to the HOD
+        await _firestore.collection('requests').doc(requestId).update({
+          'status': 'Approved by Class Teacher',
+          'approved_by_class_teacher': true,
+        });
+
+        // Fetch HOD email for the respective course
+        final hodSnapshot = await _firestore.collection('hods').where('course', isEqualTo: course).get();
+        if (hodSnapshot.docs.isNotEmpty) {
+          final hodEmail = hodSnapshot.docs.first['email'];
+
+          // Forward the request to the HOD
+          await _firestore.collection('hod_requests').doc(requestId).set({
+            ...await _firestore.collection('requests').doc(requestId).get().then((doc) => doc.data() ?? {}),
+            'hod_email': hodEmail,
+            'approved_by_hod': false, // Initially set to false
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Request forwarded to HOD")),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("HOD for the course not found!")),
+          );
+        }
+      }
     } catch (e) {
       print("Error updating request status: $e");
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to update status: $e")));
@@ -68,21 +122,32 @@ class _CTRequestPageState extends State<CTRequestPage> {
   Future<List<Map<String, dynamic>>> _fetchRequests() async {
     try {
       if (course == null || semester == null) {
-        print("Course or semester is null, returning empty list.");
         return [];
       }
 
-      final snapshot = await _firestore
+      final querySnapshot = await _firestore
           .collection('requests')
           .where('course', isEqualTo: course)
           .where('semester', isEqualTo: semester)
-          .where('status', isEqualTo: 'pending')
+          .where('status', isEqualTo: 'Pending')
           .get();
 
-      return snapshot.docs.map((doc) => {
-            'request_id': doc.id,
-            ...doc.data(),
-          }).toList();
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'request_id': doc.id,
+          'studentName': data['studentName'] ?? 'Not specified',
+          'leaveType': data['leaveType'] ?? 'Not specified',
+          'fromDate': data['fromDate'] ?? '',
+          'toDate': data['toDate'] ?? '',
+          'reason': data['reason'] ?? 'Not specified',
+          'phone': data['phone'] ?? 'Not specified',
+          'parentPhone': data['parentPhone'] ?? 'Not specified',
+          'usn': data['usn'] ?? 'Not specified',
+          'semester': data['semester'] ?? 'Not specified',
+          'attachment': data['attachment'] ?? '',
+        };
+      }).toList();
     } catch (e) {
       print("Error fetching requests: $e");
       return [];
@@ -109,56 +174,51 @@ class _CTRequestPageState extends State<CTRequestPage> {
             itemCount: requests.length,
             itemBuilder: (context, index) {
               final request = requests[index];
-              final requestId = request['request_id'];
-              final studentName = request['studentName'];
-              final leaveType = request['leaveType'];
-              final fromDate = request['fromDate'];
-              final toDate = request['toDate'];
-              final reason = request['reason'];
-              final status = request['status'];
-              final fromTime = request['fromTime']; // The time field for half-day leave
-              final toTime = request['toTime']; // The time field for half-day leave
+              final leaveDetails = request['leaveType'] == 'Half-Day Leave'
+                  ? "From Time: ${request['fromTime']}\nTo Time: ${request['toTime']}"
+                  : "From Date: ${request['fromDate']}\nTo Date: ${request['toDate']}";
 
               return Card(
                 margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                child: ListTile(
-                  title: Text(studentName),
-                  subtitle: Builder(
-                    builder: (context) {
-                      if (leaveType == 'Full-Day Leave' || leaveType == 'On-Job Leave') {
-                        return Text(
-                          "$leaveType\nFrom: ${DateFormat.yMMMd().format(DateTime.parse(fromDate))} "
-                          "To: ${DateFormat.yMMMd().format(DateTime.parse(toDate))}\n"
-                          "Reason: $reason\nStatus: $status",
-                        );
-                      } else if (leaveType == 'Half-Day Leave') {
-                        String fromTimeFormatted =
-                            fromTime != null ? DateFormat.jm().format(DateTime.parse(fromTime)) : 'Not specified';
-                        String toTimeFormatted =
-                            toTime != null ? DateFormat.jm().format(DateTime.parse(toTime)) : 'Not specified';
-
-                        return Text(
-                          "$leaveType\nFrom: $fromTimeFormatted To: $toTimeFormatted\n"
-                          "Reason: $reason\nStatus: $status",
-                        );
-                      } else {
-                        return Text("Invalid leave type");
-                      }
-                    },
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.check, color: Colors.green),
-                        onPressed: () => _updateRequestStatus(requestId, 'approved'),
+                child: Column(
+                  children: [
+                    ListTile(
+                      title: Text(request['studentName']),
+                      subtitle: Text(
+                        "USN: ${request['usn']}\n"
+                        "Semester: ${request['semester']}\n"
+                        "Leave Type: ${request['leaveType']}\n"
+                        "$leaveDetails\n"
+                        "Reason: ${request['reason']}\n"
+                        "Phone: ${request['phone']}\n"
+                        "Parent's Phone: ${request['parentPhone']}",
                       ),
-                      IconButton(
-                        icon: Icon(Icons.close, color: Colors.red),
-                        onPressed: () => _updateRequestStatus(requestId, 'rejected'),
-                      ),
-                    ],
-                  ),
+                      trailing: request['attachment'].isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.download, color: Colors.blue),
+                              onPressed: () {
+                                // Handle attachment download (if needed)
+                              },
+                            )
+                          : null,
+                      isThreeLine: true,
+                    ),
+                    ButtonBar(
+                      alignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => _updateRequestStatus(request['request_id'], 'approved'),
+                          child: Text("Approve"),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => _updateRequestStatus(request['request_id'], 'rejected'),
+                          child: Text("Reject"),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               );
             },

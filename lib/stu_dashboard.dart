@@ -19,10 +19,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Key to control the Scaffold
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Variables to hold the student data
   String? name;
   String? email;
   String? course;
@@ -56,6 +54,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
             college = userData['college'];
             profileImageUrl = userData['profileImage'];
           });
+
+          // Show a message to upload the profile image if it's missing
+          if (profileImageUrl == null || profileImageUrl!.isEmpty) {
+            _showImageUploadDialog();
+          }
         }
       }
     } catch (e) {
@@ -63,7 +66,38 @@ class _StudentDashboardState extends State<StudentDashboard> {
     }
   }
 
-  // Function to store the image locally
+  // Show a dialog to upload the profile image
+  void _showImageUploadDialog() {
+    // Make sure to call this inside setState() or when the widget is mounted
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Profile Image Missing'),
+            content: Text('Please upload a profile image to complete your profile.'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _uploadImage();
+                },
+                child: Text('Upload Image'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('Later'),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+
+  // Function to upload image
   Future<void> _uploadImage() async {
     try {
       final User? user = _auth.currentUser;
@@ -74,22 +108,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
       if (pickedFile == null) return;
 
       final File file = File(pickedFile.path);
-
-      // Get the directory to store the image
       final directory = await getApplicationDocumentsDirectory();
       final String newPath = '${directory.path}/${user.email}_profile.jpg';
-
-      // Copy the picked file to the app's document directory
       await file.copy(newPath);
 
-      // Update the local state with the new file path
       setState(() {
         profileImageUrl = newPath;  // Store the local path
       });
 
-      // Update the Firestore document with the local image path (optional)
       await _firestore.collection('students').doc(user.email).update({
-        'profileImage': newPath,  // Storing the local file path in Firestore
+        'profileImage': newPath,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -103,7 +131,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     }
   }
 
-
+  // Sign out function
   void _signOut(BuildContext context) async {
     await GoogleSignIn().signOut();
     await _auth.signOut();
@@ -115,13 +143,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldKey, // Attach the scaffold key here
+      key: _scaffoldKey,
       appBar: AppBar(
         title: Text('Student Dashboard'),
         leading: IconButton(
           icon: Icon(Icons.menu),
           onPressed: () {
-            _scaffoldKey.currentState?.openDrawer(); // Use the scaffold key
+            _scaffoldKey.currentState?.openDrawer();
           },
         ),
       ),
@@ -134,7 +162,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
               accountEmail: Text(email ?? 'student.email@example.com'),
               currentAccountPicture: CircleAvatar(
                 backgroundImage: profileImageUrl != null
-                    ? FileImage(File(profileImageUrl!)) // Local file path
+                    ? FileImage(File(profileImageUrl!))
                     : const AssetImage('assets/profile_placeholder.jpg') as ImageProvider,
               ),
             ),
@@ -175,17 +203,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
               title: Text('Log Out'),
               onTap: () => _signOut(context),
             ),
-            // Add text at the bottom of the Drawer
             Divider(),
             Padding(
               padding: EdgeInsets.all(16.0),
               child: Text(
                 "Developed by SBNS with ❤️",
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.black),
               ),
             ),
           ],
@@ -197,13 +221,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             SizedBox(height: 20.0),
-            // Profile photo without camera icon
             GestureDetector(
               onTap: _uploadImage,
               child: CircleAvatar(
                 radius: 50,
                 backgroundImage: profileImageUrl != null
-                    ? FileImage(File(profileImageUrl!))  // Display local image
+                    ? FileImage(File(profileImageUrl!))
                     : const AssetImage('assets/profile_placeholder.jpg') as ImageProvider,
               ),
             ),
@@ -219,7 +242,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
             SizedBox(height: 20.0),
-            // Add Request and Check Status buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -258,7 +280,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
               ],
             ),
             SizedBox(height: 30.0),
-            // Additional Profile Information
             ListTile(
               leading: Icon(Icons.school),
               title: Text("Course"),
@@ -288,3 +309,4 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 }
+

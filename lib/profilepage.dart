@@ -21,6 +21,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String _selectedRole = 'Student'; // Default selected role
   String _selectedSemester = "Semester 1"; // Default semester value
+  String _selectedCourse = "BE Information Science & Eng";
 
   static const String hodCode = "123456"; // Correct HOD Code
   static const String classTeacherCode = "654321"; // Correct Class-Teacher Code
@@ -72,6 +73,7 @@ class _ProfilePageState extends State<ProfilePage> {
       }
 
       try {
+      print("Selected Course: $_selectedCourse");
         // Initialize the profileData map with common fields
         final profileData = {
           "email": _emailController.text,
@@ -87,7 +89,7 @@ class _ProfilePageState extends State<ProfilePage> {
             "address": _addressController.text,
             "usn": _usnController.text,
             "college": "T John Group of Institutions",
-            "course": "BE Computer Science & Eng",
+            "course": _selectedCourse,
             "semester": _selectedSemester, // Include the semester value
           });
         } else if (_selectedRole == "HOD") {
@@ -95,14 +97,14 @@ class _ProfilePageState extends State<ProfilePage> {
             "staffId": _staffIdController.text,
             "hodCode": _hodCodeController.text,
             "college": "T John Group of Institutions",
-            "course": "BE Computer Science & Eng"
+            "course": _selectedCourse,
           });
         } else if (_selectedRole == "Class-Teacher") {
           profileData.addAll({
             "staffId": _staffIdController.text,
             "classTeacherCode": _classTeacherCodeController.text,
             "college": "T John Group of Institutions",
-            "course": "BE Computer Science & Eng",
+            "course": _selectedCourse,
             "semester": _selectedSemester, // Include the semester value
           });
         }
@@ -188,7 +190,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 "BE Civil Eng",
                 "BE IoT"
               ],
-              (val) {}),
+              (val) {
+                setState(() {
+                  _selectedCourse = val!;
+                });
+              }),
           _buildDropdown(
               "Semester",
               [
@@ -235,7 +241,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 "BE Civil Eng",
                 "BE IoT"
               ],
-              (val) {}),
+              (val) {
+                setState(() {
+                  _selectedCourse = val!;
+                });
+              }),
           SizedBox(height: 20.0),
           ElevatedButton(onPressed: _saveProfile, child: Text('Create Profile')),
         ],
@@ -265,7 +275,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 "BE Civil Eng",
                 "BE IoT"
               ],
-              (val) {}),
+              (val) {
+                setState(() {
+                  _selectedCourse = val!;
+                });
+              }),
           _buildDropdown(
               "Semester",
               [
@@ -289,6 +303,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+
 
   Widget _buildTextField(String label, TextEditingController controller,
       {bool isEmail = false}) {
