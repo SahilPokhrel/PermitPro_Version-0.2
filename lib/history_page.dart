@@ -24,7 +24,7 @@ class _HistoryPageState extends State<HistoryPage> {
       final User? user = _auth.currentUser;
       if (user != null) {
         final snapshot = await _firestore
-            .collection('studentHistory') // Fetching from 'history' collection
+            .collection('studentHistory') // Fetching from 'studentHistory' collection
             .where('email', isEqualTo: user.email)
             .orderBy('submittedAt', descending: true)
             .get();
@@ -78,13 +78,14 @@ class _HistoryPageState extends State<HistoryPage> {
           ? Center(child: CircularProgressIndicator())
           : _requests.isEmpty
               ? Center(child: Text("No request history found."))
-              : Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: SingleChildScrollView(
+              : SingleChildScrollView( // Wrap the main content with SingleChildScrollView
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
                     child: Column(
                       children: [
                         ListView.builder(
-                          shrinkWrap: true,
+                          shrinkWrap: true, // Make the ListView take only as much space as needed
+                          physics: NeverScrollableScrollPhysics(), // Disable ListView's scrolling
                           itemCount: _requests.length,
                           itemBuilder: (context, index) {
                             final request = _requests[index];

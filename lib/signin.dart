@@ -135,12 +135,12 @@ class _SigninState extends State<Signin> {
                 height: 100), // Add your image asset
             SizedBox(height: 20),
             Text(
-              'Welcome!',
+              'Leave Management System',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 10),
             Text(
-              'Continue with Google to access your dashboard',
+              'Streamlining Leave Management for Students and Educators',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),

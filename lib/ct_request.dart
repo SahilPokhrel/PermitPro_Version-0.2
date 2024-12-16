@@ -54,6 +54,9 @@ class _CTRequestPageState extends State<CTRequestPage> {
           'leaveType': requestData['leaveType'] ?? 'Unknown',
           'status': status == 'approved' ? 'Approved by Class Teacher' : 'Rejected by Class Teacher',
           'approvedBy': teacherEmail,
+          'fromDate': requestData['fromDate'] ?? 'N/A',
+          'toDate': requestData['toDate'] ?? 'N/A',
+          'reason': requestData['reason'] ?? 'No Reason Provided',
           'timestamp': FieldValue.serverTimestamp(), // Record the time of action
         });
       }
@@ -61,6 +64,7 @@ class _CTRequestPageState extends State<CTRequestPage> {
       print("Error logging action in history: $e");
     }
   }
+
 
   // Update request status, log action in history, and forward to HOD
   Future<void> _updateRequestStatus(String requestId, String status) async {

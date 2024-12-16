@@ -21,25 +21,28 @@ class CheckStatus extends StatelessWidget {
         .snapshots();
   }
 
-  // Format the date range for full-day and on-job leave requests
-  String _formatDateRange(DateTime from, DateTime to) {
-    return "${DateFormat.yMMMd().format(from)} - ${DateFormat.yMMMd().format(to)}";
-  }
-
   // Parse Firestore date fields to DateTime
   DateTime? _parseDate(dynamic dateField) {
     if (dateField is Timestamp) {
       return dateField.toDate();
     } else if (dateField is String) {
       try {
-        return DateFormat.yMMMd().parse(dateField);
+        // Attempt to parse ISO 8601 format
+        return DateTime.parse(dateField);
       } catch (e) {
-        print("Error parsing date string: $e");
-        return null;
+        print("Error parsing ISO 8601 date string: $e");
+        try {
+          // Attempt to parse yMMMd format (e.g., "Dec 14, 2024")
+          return DateFormat.yMMMd().parse(dateField);
+        } catch (e) {
+          print("Error parsing yMMMd date string: $e");
+          return null;
+        }
       }
     }
     return null;
   }
+
 
   // Move a request to the history collection
   Future<void> _moveToHistory(String requestId, Map<String, dynamic> requestData, BuildContext context) async {
@@ -147,12 +150,19 @@ class CheckStatus extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 8.0),
-                      leaveType == 'Full-Day Leave' || leaveType == 'On-Job Leave'
-                          ? Text(
-                              "Date: ${fromDate != null && toDate != null ? _formatDateRange(fromDate, toDate!) : 'N/A'}",
-                              style: TextStyle(fontSize: 14.0),
-                            )
-                          : Text("Date: N/A", style: TextStyle(fontSize: 14.0)),
+                      if (leaveType == 'Full-Day Leave' || leaveType == 'On-Job Leave') ...[
+                        Text(
+                          "From Date: ${fromDate != null ? DateFormat.yMMMd().format(fromDate) : 'N/A'}",
+                          style: TextStyle(fontSize: 14.0),
+                        ),
+                        Text(
+                          "To Date: ${toDate != null ? DateFormat.yMMMd().format(toDate) : 'N/A'}",
+                          style: TextStyle(fontSize: 14.0),
+                        ),
+                      ] else ...[
+                        Text("From Date: N/A", style: TextStyle(fontSize: 14.0)),
+                        Text("To Date: N/A", style: TextStyle(fontSize: 14.0)),
+                      ],
                       SizedBox(height: 8.0),
                       Text("Reason: $reason", style: TextStyle(fontSize: 14.0)),
                       SizedBox(height: 8.0),
@@ -164,7 +174,6 @@ class CheckStatus extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 8.0),
-                      // Replace the delete button with the move to history functionality
                       ElevatedButton(
                         onPressed: () {
                           _moveToHistory(requestId, requestData, context);

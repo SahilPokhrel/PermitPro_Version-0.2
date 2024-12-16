@@ -41,6 +41,14 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _emailController.text = widget.email;
+
+    // Ensure USN input is uppercase
+    _usnController.addListener(() {
+      _usnController.text = _usnController.text.toUpperCase();
+      _usnController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _usnController.text.length),
+      );
+    });
   }
 
   Future<void> _navigateToDashboard() async {
@@ -56,7 +64,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  void _saveProfile() async {
+  Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedRole == "HOD" && _hodCodeController.text != hodCode) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -73,7 +81,22 @@ class _ProfilePageState extends State<ProfilePage> {
       }
 
       try {
-      print("Selected Course: $_selectedCourse");
+        if (_selectedRole == "Student") {
+          // Check if account already exists with the same USN
+          final studentSnapshot = await _firestore
+              .collection("students")
+              .where("usn", isEqualTo: _usnController.text)
+              .get();
+
+          if (studentSnapshot.docs.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text("Account for USN ${_usnController.text} already exists.")));
+            return; // Don't proceed with account creation if USN already exists
+          }
+        }
+
+        print("Selected Course: $_selectedCourse");
+
         // Initialize the profileData map with common fields
         final profileData = {
           "email": _emailController.text,

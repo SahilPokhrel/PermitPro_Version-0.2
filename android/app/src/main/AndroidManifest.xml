@@ -3,7 +3,7 @@
     <application
         android:enableOnBackInvokedCallback="true"
         android:requestLegacyExternalStorage="true"
-        android:label="permit_pro"
+        android:label="PermitPro: LMS"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -52,6 +52,8 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
+    <uses-permission android:name="android.permission.CALL_PHONE"/>
+
 
 
 </manifest>

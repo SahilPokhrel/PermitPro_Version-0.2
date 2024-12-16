@@ -52,23 +52,41 @@ class _HodRequestPageState extends State<HodRequestPage> {
 
   Future<void> _updateRequestStatus(String requestId, bool isApproved) async {
     try {
-      if (isApproved) {
-        // Approve request
-        await _firestore.collection('requests').doc(requestId).update({
-          'approved_by_hod': true,
-          'status': 'Approved by HOD',
-        });
-      } else {
-        // Reject request
-        await _firestore.collection('requests').doc(requestId).update({
-          'approved_by_hod': false,
-          'status': 'Rejected by HOD',
-        });
+      final requestDoc = await _firestore.collection('requests').doc(requestId).get();
+
+      if (!requestDoc.exists) {
+        throw Exception("Request document not found");
       }
+
+      // Extract the required fields from the request document
+      final requestData = requestDoc.data()!;
+      final studentName = requestData['studentName'];
+      final fromDate = requestData['fromDate'];
+      final toDate = requestData['toDate'];
+      final reason = requestData['reason'];
+      final semester = requestData['semester'] ?? 'N/A';
+      final status = isApproved ? 'Approved by HOD' : 'Rejected by HOD';
+
+      // Update the status in the original "requests" collection
+      await _firestore.collection('requests').doc(requestId).update({
+        'approved_by_hod': isApproved,
+        'status': status,
+      });
+
+      // Add the request details to the "hodHistory" collection
+      await _firestore.collection('hodHistory').add({
+        'studentName': studentName,
+        'fromDate': fromDate,
+        'toDate': toDate,
+        'reason': reason,
+        'semester': semester,
+        'status': status,
+        'timestamp': FieldValue.serverTimestamp(), // For sorting by date
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isApproved ? "Request approved" : "Request rejected"),
+          content: Text(isApproved ? "Request approved and added to history" : "Request rejected and added to history"),
         ),
       );
     } catch (e) {
@@ -78,6 +96,7 @@ class _HodRequestPageState extends State<HodRequestPage> {
       );
     }
   }
+
 
   // Remove the request from the UI only
   void _deleteRequest(String requestId) {
